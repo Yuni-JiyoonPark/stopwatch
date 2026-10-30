@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stopwatch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f3ede1; --bg2: #e2d6bf; --text: #3a2c12; --muted: #8a7550;
+    --gold: #c9a13b; --gold-hi: #f6e39b; --gold-lo: #7a5a14;
+    --card: rgba(255, 250, 238, .7); --line: rgba(122, 90, 20, .25);
+    --best: #2f7a3c; --worst: #a8261c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14110b; --bg2: #2a2214; --text: #f2e3b8; --muted: #a8915e;
+            --card: rgba(40, 32, 18, .7); --line: rgba(201, 161, 59, .25);
+            --best: #7fcf8a; --worst: #ff8a7a; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text);
+    background: radial-gradient(circle at 50% 30%, var(--bg2), var(--bg) 70%);
+    background-color: var(--bg);
+    font-family: "Manrope", system-ui, sans-serif;
+    display: flex; justify-content: center; padding: 24px 16px 40px;
+  }
+  .wrap { width: 100%; max-width: 420px; }
+  svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 18px 24px rgba(0,0,0,.35)); }
+  .pusher { cursor: pointer; transition: transform .08s; }
+  .pusher:active { transform: translateY(4px); }
+  #pusherSide:active { transform: translate(3px, 3px); }
+  .controls { display: flex; gap: 16px; margin: 20px 0 24px; }
+  button {
+    flex: 1; height: 52px; border-radius: 26px; cursor: pointer;
+    font: 700 14px "Manrope", system-ui, sans-serif; letter-spacing: 2px; text-transform: uppercase; color: #3a2a08;
+    border: 1px solid var(--gold-lo);
+    background: linear-gradient(180deg, var(--gold-hi), var(--gold) 45%, var(--gold-lo) 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 4px 10px rgba(0,0,0,.25);
+  }
+  button:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,.3); }
+  button:disabled { opacity: .45; cursor: default; transform: none; }
+  ul {
+    list-style: none; margin: 0; padding: 0 16px; border-radius: 16px;
+    background: var(--card); border: 1px solid var(--line);
+  }
+  ul:empty { display: none; }
+  li {
+    display: flex; justify-content: space-between; padding: 12px 0;
+    border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; font-size: 15px;
+  }
+  li:first-child { border-top: none; }
+  li.best { color: var(--best); }
+  li.worst { color: var(--worst); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <svg viewBox="0 0 400 470" aria-label="Analog stopwatch">
+    <defs>
+      <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#fff4b8"/>
+        <stop offset=".25" stop-color="#d9b04a"/>
+        <stop offset=".5" stop-color="#8a6416"/>
+        <stop offset=".75" stop-color="#f1d77e"/>
+        <stop offset="1" stop-color="#9c7420"/>
+      </linearGradient>
+      <linearGradient id="goldV" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff1a8"/>
+        <stop offset=".5" stop-color="#c79a33"/>
+        <stop offset="1" stop-color="#6e4f10"/>
+      </linearGradient>
+      <linearGradient id="goldH" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#7a5a14"/>
+        <stop offset=".35" stop-color="#f6e39b"/>
+        <stop offset=".65" stop-color="#c9a13b"/>
+        <stop offset="1" stop-color="#6e4f10"/>
+      </linearGradient>
+      <radialGradient id="face" cx=".45" cy=".4" r=".7">
+        <stop offset="0" stop-color="#fffaf0"/>
+        <stop offset=".8" stop-color="#f1e6cc"/>
+        <stop offset="1" stop-color="#d9c79e"/>
+      </radialGradient>
+      <radialGradient id="glass" cx=".35" cy=".25" r=".6">
+        <stop offset="0" stop-color="#fff" stop-opacity=".45"/>
+        <stop offset=".5" stop-color="#fff" stop-opacity=".06"/>
+        <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+
+    <!-- 측면 푸셔 (랩/재설정) -->
+    <g id="pusherSide" class="pusher">
+      <g transform="rotate(-45 200 270)">
+        <rect x="190" y="70" width="20" height="30" rx="3" fill="url(#goldH)" stroke="#5a410c" stroke-width="1"/>
+        <rect x="184" y="56" width="32" height="18" rx="5" fill="url(#goldH)" stroke="#5a410c" stroke-width="1"/>
+      </g>
+    </g>
+
+    <!-- 크라운 (시작/정지) -->
+    <g id="crown" class="pusher">
+      <rect x="182" y="58" width="36" height="34" rx="4" fill="url(#goldH)" stroke="#5a410c" stroke-width="1"/>
+      <rect x="168" y="22" width="64" height="40" rx="10" fill="url(#goldH)" stroke="#5a410c" stroke-width="1"/>
+      <g stroke="#6e4f10" stroke-width="1.2" opacity=".6">
+        <line x1="178" y1="26" x2="178" y2="58"/><line x1="188" y1="26" x2="188" y2="58"/>
+        <line x1="200" y1="26" x2="200" y2="58"/><line x1="212" y1="26" x2="212" y2="58"/>
+        <line x1="222" y1="26" x2="222" y2="58"/>
+      </g>
+      <circle cx="200" cy="12" r="16" fill="none" stroke="url(#goldV)" stroke-width="7"/>
+    </g>
+
+    <!-- 케이스 -->
+    <circle cx="200" cy="270" r="182" fill="url(#gold)" stroke="#5a410c" stroke-width="1.5"/>
+    <circle cx="200" cy="270" r="170" fill="none" stroke="url(#goldV)" stroke-width="6"/>
+    <circle cx="200" cy="270" r="164" fill="#6e4f10"/>
+    <circle cx="200" cy="270" r="161" fill="url(#face)"/>
+
+    <!-- 눈금 & 숫자 -->
+    <g id="ticks"></g>
+    <g id="numerals" font-family="Manrope, sans-serif" font-weight="500" font-size="19" fill="#2a1e08" text-anchor="middle" dominant-baseline="central"></g>
+
+    <!-- 브랜드 문구 -->
+    <text x="200" y="200" text-anchor="middle" font-family="Manrope, sans-serif" font-weight="700" font-size="9" letter-spacing="5" fill="#7a5a14">CHRONOGRAPH</text>
+
+    <!-- 디지털 창 -->
+    <rect x="148" y="214" width="104" height="26" rx="4" fill="#1d1608" stroke="url(#goldV)" stroke-width="2"/>
+    <text id="digital" x="200" y="228" text-anchor="middle" dominant-baseline="central"
+          font-family="Manrope, sans-serif" font-weight="500" font-size="15" style="font-variant-numeric: tabular-nums" fill="#f6e39b">00:00.00</text>
+
+    <!-- 분 서브다이얼 (30분) -->
+    <circle cx="200" cy="330" r="40" fill="#efe2c3" stroke="url(#goldV)" stroke-width="3"/>
+    <g id="subTicks"></g>
+    <g id="subNums" font-family="Manrope, sans-serif" font-weight="500" font-size="9" fill="#2a1e08" text-anchor="middle" dominant-baseline="central"></g>
+    <g id="minHand">
+      <line x1="200" y1="336" x2="200" y2="298" stroke="#2a1e08" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+    <circle cx="200" cy="330" r="4" fill="url(#goldV)" stroke="#5a410c" stroke-width=".8"/>
+
+    <!-- 초침 -->
+    <g id="secHand">
+      <line x1="200" y1="300" x2="200" y2="122" stroke="#a8261c" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="200" cy="300" r="7" fill="none" stroke="#a8261c" stroke-width="2.5"/>
+      <path d="M200 112 L195 132 L205 132 Z" fill="#a8261c"/>
+    </g>
+    <circle cx="200" cy="270" r="9" fill="url(#gold)" stroke="#5a410c" stroke-width="1"/>
+    <circle cx="200" cy="270" r="3" fill="#a8261c"/>
+
+    <!-- 유리 반사 -->
+    <circle cx="200" cy="270" r="161" fill="url(#glass)" pointer-events="none"/>
+  </svg>
+
+  <div class="controls">
+    <button id="toggle">Start</button>
+    <button id="lap" disabled>Lap</button>
+  </div>
+  <ul id="laps"></ul>
+</div>
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const CX = 200, CY = 270;
+
+  function el(tag, attrs) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function polar(cx, cy, r, deg) {
+    const a = (deg - 90) * Math.PI / 180;
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  }
+
+  // 메인 다이얼: 1/5초 눈금
+  const ticks = document.getElementById('ticks');
+  for (let i = 0; i < 300; i++) {
+    const deg = i * 1.2;
+    const major = i % 25 === 0, sec = i % 5 === 0;
+    const len = major ? 16 : sec ? 10 : 5;
+    const [x1, y1] = polar(CX, CY, 156, deg);
+    const [x2, y2] = polar(CX, CY, 156 - len, deg);
+    ticks.appendChild(el('line', { x1, y1, x2, y2, stroke: '#2a1e08',
+      'stroke-width': major ? 2.4 : sec ? 1.4 : .6 }));
+  }
+  const nums = document.getElementById('numerals');
+  for (let s = 5; s <= 60; s += 5) {
+    const [x, y] = polar(CX, CY, 122, s * 6);
+    const t = el('text', { x, y }); t.textContent = s; nums.appendChild(t);
+  }
+
+  // 서브다이얼: 30분
+  const subTicks = document.getElementById('subTicks');
+  const subNums = document.getElementById('subNums');
+  for (let m = 0; m < 30; m++) {
+    const big = m % 5 === 0;
+    const [x1, y1] = polar(200, 330, 37, m * 12);
+    const [x2, y2] = polar(200, 330, big ? 31 : 34, m * 12);
+    subTicks.appendChild(el('line', { x1, y1, x2, y2, stroke: '#2a1e08', 'stroke-width': big ? 1.4 : .6 }));
+  }
+  for (const m of [10, 20, 30]) {
+    const [x, y] = polar(200, 330, 23, m * 12);
+    const t = el('text', { x, y }); t.textContent = m; subNums.appendChild(t);
+  }
+
+  const secHand = document.getElementById('secHand');
+  const minHand = document.getElementById('minHand');
+  const digital = document.getElementById('digital');
+  const toggleBtn = document.getElementById('toggle');
+  const lapBtn = document.getElementById('lap');
+  const lapList = document.getElementById('laps');
+
+  let running = false, startTime = 0, elapsed = 0, lapStart = 0, laps = [], raf = null;
+
+  function fmt(ms) {
+    const cs = Math.floor(ms / 10) % 100;
+    const s = Math.floor(ms / 1000) % 60;
+    const m = Math.floor(ms / 60000) % 60;
+    const h = Math.floor(ms / 3600000);
+    const p = n => String(n).padStart(2, '0');
+    return (h ? h + ':' : '') + p(m) + ':' + p(s) + '.' + p(cs);
+  }
+
+  const now = () => running ? elapsed + performance.now() - startTime : elapsed;
+
+  function draw(ms) {
+    secHand.setAttribute('transform', `rotate(${(ms % 60000) / 60000 * 360} ${CX} ${CY})`);
+    minHand.setAttribute('transform', `rotate(${(ms % 1800000) / 1800000 * 360} 200 330)`);
+    digital.textContent = fmt(ms);
+  }
+
+  function tick() {
+    draw(now());
+    if (lapList.firstChild && running) {
+      lapList.firstChild.lastChild.textContent = fmt(now() - lapStart);
+    }
+    raf = requestAnimationFrame(tick);
+  }
+
+  function renderLaps() {
+    lapList.innerHTML = '';
+    const done = laps.length;
+    const min = Math.min(...laps), max = Math.max(...laps);
+    if (running || elapsed > 0) addRow(done + 1, now() - lapStart, '');
+    for (let i = done - 1; i >= 0; i--) {
+      let cls = '';
+      if (done >= 2 && laps[i] === min) cls = 'best';
+      else if (done >= 2 && laps[i] === max) cls = 'worst';
+      addRow(i + 1, laps[i], cls);
+    }
+  }
+
+  function addRow(n, ms, cls) {
+    const li = document.createElement('li');
+    li.className = cls;
+    li.innerHTML = `<span>Lap ${n}</span><span>${fmt(ms)}</span>`;
+    lapList.appendChild(li);
+  }
+
+  function toggle() {
+    if (running) {
+      elapsed = now();
+      running = false;
+      cancelAnimationFrame(raf);
+      draw(elapsed);
+      toggleBtn.textContent = 'Start';
+      lapBtn.textContent = 'Reset';
+    } else {
+      startTime = performance.now();
+      running = true;
+      tick();
+      toggleBtn.textContent = 'Stop';
+      lapBtn.textContent = 'Lap';
+      lapBtn.disabled = false;
+      if (!lapList.firstChild) renderLaps();
+    }
+  }
+
+  function lapOrReset() {
+    if (running) {
+      const t = now();
+      laps.push(t - lapStart);
+      lapStart = t;
+      renderLaps();
+    } else {
+      elapsed = 0; lapStart = 0; laps = [];
+      draw(0);
+      lapList.innerHTML = '';
+      lapBtn.textContent = 'Lap';
+      lapBtn.disabled = true;
+    }
+  }
+
+  toggleBtn.addEventListener('click', toggle);
+  lapBtn.addEventListener('click', lapOrReset);
+  document.getElementById('crown').addEventListener('click', toggle);
+  document.getElementById('pusherSide').addEventListener('click', () => {
+    if (running || elapsed > 0) lapOrReset();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    else if (e.key === 'l' || e.key === 'L') { if (running) lapOrReset(); }
+    else if (e.key === 'r' || e.key === 'R') { if (!running) lapOrReset(); }
+  });
+</script>
+</body>
+</html>

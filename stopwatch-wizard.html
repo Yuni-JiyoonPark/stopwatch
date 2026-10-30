@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wizard Stopwatch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Manrope:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #170406; --band: #5e0d17; --gem: #e0243c; --sand: #f2c45a;
+    --m-hi: #fbe7a1; --m-mid: #d4a73a; --m-lo: #7a5512;
+    --text: #f6ead0; --muted: rgba(246, 234, 208, .55);
+  }
+  [data-theme="gryffindor"] { --bg: #170406; --band: #5e0d17; --gem: #e0243c; --sand: #f2c45a; --m-hi: #fbe7a1; --m-mid: #d4a73a; --m-lo: #7a5512; }
+  [data-theme="slytherin"]  { --bg: #03130b; --band: #0b4a2c; --gem: #1fc46a; --sand: #dfe6ec; --m-hi: #ffffff; --m-mid: #aeb7c0; --m-lo: #4f5760; }
+  [data-theme="ravenclaw"]  { --bg: #050b1e; --band: #142f66; --gem: #3b7bff; --sand: #e9b07a; --m-hi: #f6d2a8; --m-mid: #b0723e; --m-lo: #5e3518; }
+  [data-theme="hufflepuff"] { --bg: #0e0d0a; --band: #1f1c15; --gem: #f2c21b; --sand: #f2c21b; --m-hi: #fff0b0; --m-mid: #caa035; --m-lo: #6b5212; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text);
+    background: radial-gradient(circle at 50% 28%, color-mix(in srgb, var(--band) 70%, transparent), var(--bg) 65%);
+    background-color: var(--bg);
+    font-family: "Manrope", system-ui, sans-serif;
+    display: flex; justify-content: center; padding: 20px 16px 40px;
+    transition: background-color .6s;
+  }
+  #fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+  .wrap { width: 100%; max-width: 420px; position: relative; z-index: 1; }
+
+  .houses { display: flex; justify-content: center; gap: 14px; }
+  .houses button {
+    width: 46px; height: 46px; flex: none; border-radius: 50%; padding: 0; cursor: pointer;
+    border: 2px solid var(--crest); background: var(--field);
+    font-size: 24px; line-height: 1; color: transparent; text-shadow: 0 0 0 var(--crest);
+    box-shadow: inset 0 0 0 3px var(--field), inset 0 0 0 4px var(--crest), 0 3px 8px rgba(0,0,0,.5);
+    opacity: .7; transition: transform .2s, opacity .2s;
+  }
+  .houses button[aria-pressed="true"] { opacity: 1; transform: scale(1.12); box-shadow: inset 0 0 0 3px var(--field), inset 0 0 0 4px var(--crest), 0 0 14px var(--crest); }
+  .houses [data-h="gryffindor"] { --field: #7f0909; --crest: #e2b33a; }
+  .houses [data-h="slytherin"]  { --field: #1a472a; --crest: #c9ced3; }
+  .houses [data-h="ravenclaw"]  { --field: #0e1a40; --crest: #c08a4a; }
+  .houses [data-h="hufflepuff"] { --field: #ecb939; --crest: #2a2420; }
+  .house-name {
+    text-align: center; font: 700 13px "Cinzel", serif; letter-spacing: 4px;
+    color: var(--m-hi); margin: 12px 0 4px; text-transform: uppercase;
+  }
+
+  .stage { perspective: 900px; }
+  svg { width: 100%; height: auto; display: block; will-change: transform, filter;
+        filter: drop-shadow(0 16px 28px rgba(0,0,0,.6)); }
+  #chain { cursor: pointer; }
+
+  .time {
+    text-align: center; font-weight: 300; font-size: clamp(40px, 13vw, 58px);
+    font-variant-numeric: tabular-nums; letter-spacing: 1px; margin: 4px 0 18px;
+    background: linear-gradient(180deg, var(--m-hi), var(--m-mid) 60%, var(--m-lo));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .controls { display: flex; gap: 16px; margin-bottom: 22px; }
+  .controls button {
+    flex: 1; height: 52px; border-radius: 26px; cursor: pointer;
+    font: 700 14px "Cinzel", serif; letter-spacing: 3px; color: var(--bg);
+    border: 1px solid var(--m-lo);
+    background: linear-gradient(180deg, var(--m-hi), var(--m-mid) 45%, var(--m-lo));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 4px 14px rgba(0,0,0,.45);
+  }
+  .controls button:active { transform: translateY(1px); box-shadow: inset 0 2px 4px rgba(0,0,0,.35); }
+  .controls button:disabled { opacity: .4; cursor: default; transform: none; }
+
+  ul {
+    list-style: none; margin: 0; padding: 0 16px; border-radius: 16px;
+    background: rgba(0,0,0,.28); border: 1px solid color-mix(in srgb, var(--m-mid) 35%, transparent);
+  }
+  ul:empty { display: none; }
+  li {
+    display: flex; justify-content: space-between; padding: 12px 0; font-size: 15px;
+    border-top: 1px solid color-mix(in srgb, var(--m-mid) 20%, transparent);
+    font-variant-numeric: tabular-nums;
+  }
+  li:first-child { border-top: none; }
+  li span:first-child { font-family: "Cinzel", serif; letter-spacing: 1px; }
+  li.best { color: #7fe39a; }
+  li.worst { color: #ff8a7a; }
+</style>
+</head>
+<body data-theme="gryffindor">
+<canvas id="fx"></canvas>
+<div class="wrap">
+  <div class="houses" role="group" aria-label="House">
+    <button data-h="gryffindor" aria-label="Gryffindor" title="Gryffindor">🦁</button>
+    <button data-h="slytherin" aria-label="Slytherin" title="Slytherin">🐍</button>
+    <button data-h="ravenclaw" aria-label="Ravenclaw" title="Ravenclaw">🦅</button>
+    <button data-h="hufflepuff" aria-label="Hufflepuff" title="Hufflepuff">🦡</button>
+  </div>
+  <div class="house-name" id="houseName">Gryffindor</div>
+
+  <div class="stage">
+  <svg id="watch" viewBox="0 0 400 430" aria-label="Hourglass stopwatch">
+    <defs>
+      <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" style="stop-color: var(--m-hi)"/>
+        <stop offset=".3" style="stop-color: var(--m-mid)"/>
+        <stop offset=".5" style="stop-color: var(--m-lo)"/>
+        <stop offset=".75" style="stop-color: var(--m-hi)"/>
+        <stop offset="1" style="stop-color: var(--m-lo)"/>
+      </linearGradient>
+      <linearGradient id="metalRev" x1="1" y1="1" x2="0" y2="0">
+        <stop offset="0" style="stop-color: var(--m-hi)"/>
+        <stop offset=".45" style="stop-color: var(--m-mid)"/>
+        <stop offset="1" style="stop-color: var(--m-lo)"/>
+      </linearGradient>
+      <linearGradient id="metalV" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" style="stop-color: var(--m-hi)"/>
+        <stop offset=".55" style="stop-color: var(--m-mid)"/>
+        <stop offset="1" style="stop-color: var(--m-lo)"/>
+      </linearGradient>
+      <!-- cylinder shading for pillars, plates -->
+      <linearGradient id="metalH" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" style="stop-color: var(--m-lo)"/>
+        <stop offset=".3" style="stop-color: var(--m-hi)"/>
+        <stop offset=".6" style="stop-color: var(--m-mid)"/>
+        <stop offset="1" style="stop-color: var(--m-lo)"/>
+      </linearGradient>
+      <radialGradient id="inner" cx=".5" cy=".45" r=".6">
+        <stop offset="0" style="stop-color: var(--band)"/>
+        <stop offset="1" style="stop-color: var(--bg)"/>
+      </radialGradient>
+      <!-- rounded bevel on the case edge -->
+      <radialGradient id="caseShade" gradientUnits="userSpaceOnUse" cx="200" cy="228" r="180">
+        <stop offset=".94" stop-color="#000" stop-opacity=".45"/>
+        <stop offset=".965" stop-color="#fff" stop-opacity=".3"/>
+        <stop offset="1" stop-color="#000" stop-opacity=".5"/>
+      </radialGradient>
+      <!-- tube shading on the rotating ring -->
+      <radialGradient id="ringShade" gradientUnits="userSpaceOnUse" cx="200" cy="228" r="130">
+        <stop offset=".846" stop-color="#000" stop-opacity=".5"/>
+        <stop offset=".93" stop-color="#fff" stop-opacity=".35"/>
+        <stop offset="1" stop-color="#000" stop-opacity=".55"/>
+      </radialGradient>
+      <radialGradient id="bandShadow" gradientUnits="userSpaceOnUse" cx="200" cy="228" r="170">
+        <stop offset=".78" stop-color="#000" stop-opacity=".35"/>
+        <stop offset=".84" stop-color="#000" stop-opacity="0"/>
+        <stop offset=".92" stop-color="#000" stop-opacity="0"/>
+        <stop offset="1" stop-color="#000" stop-opacity=".65"/>
+      </radialGradient>
+      <radialGradient id="chamberShadow" gradientUnits="userSpaceOnUse" cx="200" cy="218" r="112">
+        <stop offset=".7" stop-color="#000" stop-opacity="0"/>
+        <stop offset="1" stop-color="#000" stop-opacity=".8"/>
+      </radialGradient>
+      <linearGradient id="light" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity=".28"/>
+        <stop offset=".45" stop-color="#fff" stop-opacity="0"/>
+        <stop offset=".55" stop-color="#000" stop-opacity="0"/>
+        <stop offset="1" stop-color="#000" stop-opacity=".35"/>
+      </linearGradient>
+      <linearGradient id="roundShade" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#000" stop-opacity=".45"/>
+        <stop offset=".3" stop-color="#fff" stop-opacity=".2"/>
+        <stop offset=".55" stop-color="#000" stop-opacity="0"/>
+        <stop offset="1" stop-color="#000" stop-opacity=".5"/>
+      </linearGradient>
+      <linearGradient id="glareGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity=".5"/>
+        <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+      </linearGradient>
+      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="2" dy="5" stdDeviation="3.5" flood-color="#000" flood-opacity=".6"/>
+      </filter>
+      <filter id="shadowSm" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="1" dy="1.5" stdDeviation="1" flood-color="#000" flood-opacity=".6"/>
+      </filter>
+      <filter id="grain">
+        <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3"/>
+        <feColorMatrix type="saturate" values="0"/>
+      </filter>
+      <clipPath id="caseClip"><circle cx="200" cy="228" r="180"/></clipPath>
+      <clipPath id="topBulb">
+        <path d="M164 140 L236 140 C236 178 206 190 203 228 L197 228 C194 190 164 178 164 140 Z"/>
+      </clipPath>
+      <clipPath id="botBulb">
+        <path d="M164 316 L236 316 C236 278 206 266 203 228 L197 228 C194 266 164 278 164 316 Z"/>
+      </clipPath>
+      <path id="inscription" d="M200 228 m-112 0 a112 112 0 1 1 224 0 a112 112 0 1 1 -224 0"/>
+    </defs>
+
+    <!-- chain loop: start/stop -->
+    <g id="chain" filter="url(#shadowSm)">
+      <circle cx="200" cy="22" r="15" fill="none" stroke="url(#metalV)" stroke-width="7"/>
+      <circle cx="200" cy="22" r="15" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.5"
+              stroke-dasharray="20 80" transform="rotate(-150 200 22)"/>
+      <rect x="189" y="34" width="22" height="16" rx="3" fill="url(#metalH)" stroke="var(--m-lo)"/>
+    </g>
+
+    <!-- outer case: domed bezel -->
+    <circle cx="200" cy="228" r="180" fill="url(#metal)"/>
+    <circle cx="200" cy="228" r="180" fill="url(#caseShade)"/>
+    <rect x="20" y="48" width="360" height="360" filter="url(#grain)" clip-path="url(#caseClip)"
+          opacity=".08" style="mix-blend-mode: overlay"/>
+    <circle cx="200" cy="228" r="172" fill="url(#metalRev)"/>
+
+    <!-- recessed band -->
+    <circle cx="200" cy="228" r="169" fill="var(--band)"/>
+    <g filter="url(#shadowSm)">
+      <g id="ticks"></g>
+      <g id="numerals" font-family="Manrope, sans-serif" font-weight="500" font-size="13"
+         fill="var(--m-hi)" text-anchor="middle" dominant-baseline="central"></g>
+    </g>
+    <circle cx="200" cy="228" r="169" fill="url(#bandShadow)"/>
+    <circle cx="200" cy="228" r="180" fill="url(#light)"/>
+
+    <!-- rotating ring (1 turn per minute), raised -->
+    <g id="pxRing">
+      <g filter="url(#shadow)">
+        <g id="ring">
+          <circle cx="200" cy="228" r="120" fill="none" stroke="var(--m-mid)" stroke-width="20"/>
+          <text font-family="Cinzel, serif" font-weight="700" font-size="10" letter-spacing="2.4"
+                fill="#fff" fill-opacity=".35" dy="4.3">
+            <textPath href="#inscription">TEMPUS FUGIT · EVERY SECOND HOLDS A LITTLE MAGIC · TEMPUS FUGIT ·</textPath>
+          </text>
+          <text font-family="Cinzel, serif" font-weight="700" font-size="10" letter-spacing="2.4"
+                fill="var(--m-lo)" dy="3.5">
+            <textPath href="#inscription">TEMPUS FUGIT · EVERY SECOND HOLDS A LITTLE MAGIC · TEMPUS FUGIT ·</textPath>
+          </text>
+          <g filter="url(#shadowSm)">
+            <path d="M200 95 L209 108 L200 121 L191 108 Z" fill="var(--gem)" stroke="var(--m-hi)" stroke-width="1.2"/>
+            <path d="M200 95 L209 108 L200 108 Z" fill="#fff" fill-opacity=".45"/>
+            <path d="M200 121 L191 108 L200 108 Z" fill="#000" fill-opacity=".3"/>
+          </g>
+        </g>
+      </g>
+      <circle cx="200" cy="228" r="120" fill="none" stroke="url(#ringShade)" stroke-width="20" pointer-events="none"/>
+      <circle cx="200" cy="228" r="120" fill="none" stroke="url(#light)" stroke-width="20" pointer-events="none"/>
+    </g>
+
+    <!-- inner chamber, sunk below the ring -->
+    <g id="pxChamber">
+      <circle cx="200" cy="228" r="108" fill="url(#inner)"/>
+      <circle cx="200" cy="228" r="108" fill="url(#chamberShadow)"/>
+
+      <g filter="url(#shadow)">
+        <g id="hourglass" transform="translate(200 228) scale(.8) translate(-200 -228)">
+          <g clip-path="url(#topBulb)">
+            <rect id="sandTop" x="160" y="140" width="80" height="88" fill="var(--sand)"/>
+            <rect id="sandTopS" x="164" y="140" width="72" height="88" fill="url(#roundShade)"/>
+          </g>
+          <g clip-path="url(#botBulb)">
+            <rect id="sandBot" x="160" y="316" width="80" height="0" fill="var(--sand)"/>
+            <rect id="sandBotS" x="164" y="316" width="72" height="0" fill="url(#roundShade)"/>
+          </g>
+          <line id="stream" x1="200" y1="226" x2="200" y2="316" stroke="var(--sand)" stroke-width="1.6" opacity="0"/>
+          <!-- glass -->
+          <path d="M164 140 L236 140 C236 178 206 190 203 228 C206 266 236 278 236 316 L164 316 C164 278 194 266 197 228 C194 190 164 178 164 140 Z"
+                fill="#fff" fill-opacity=".05" stroke="rgba(255,255,255,.55)" stroke-width="1.4"/>
+          <path d="M171 146 C171 172 186 186 193 210" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/>
+          <path d="M171 310 C171 284 186 270 193 246" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/>
+          <path d="M229 150 C229 172 216 184 209 204" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width="1.5" stroke-linecap="round"/>
+          <!-- frame -->
+          <rect x="151" y="140" width="7" height="176" fill="url(#metalH)"/>
+          <rect x="242" y="140" width="7" height="176" fill="url(#metalH)"/>
+          <rect x="146" y="126" width="108" height="15" rx="6" fill="url(#metalV)" stroke="var(--m-lo)" stroke-width=".8"/>
+          <rect x="146" y="126" width="108" height="15" rx="6" fill="url(#roundShade)" opacity=".6"/>
+          <rect x="146" y="315" width="108" height="15" rx="6" fill="url(#metalV)" stroke="var(--m-lo)" stroke-width=".8"/>
+          <rect x="146" y="315" width="108" height="15" rx="6" fill="url(#roundShade)" opacity=".6"/>
+          <ellipse cx="180" cy="129.5" rx="22" ry="1.6" fill="#fff" fill-opacity=".55"/>
+          <ellipse cx="180" cy="318.5" rx="22" ry="1.6" fill="#fff" fill-opacity=".45"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- curved crystal glare -->
+    <g id="pxGlare" pointer-events="none">
+      <path d="M80 180 A128 128 0 0 1 230 96 A140 140 0 0 0 96 196 Z" fill="url(#glareGrad)" opacity=".55"/>
+      <ellipse cx="282" cy="318" rx="18" ry="7" transform="rotate(-45 282 318)" fill="#fff" fill-opacity=".12"/>
+    </g>
+  </svg>
+  </div>
+
+  <div class="time" id="display">00:00.00</div>
+  <div class="controls">
+    <button id="toggle">Start</button>
+    <button id="lap" disabled>Lap</button>
+  </div>
+  <ul id="laps"></ul>
+</div>
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const CX = 200, CY = 228;
+  const css = name => getComputedStyle(document.body).getPropertyValue(name).trim();
+
+  function polar(r, deg) {
+    const a = (deg - 90) * Math.PI / 180;
+    return [CX + r * Math.cos(a), CY + r * Math.sin(a)];
+  }
+
+  // outer band ticks & numerals
+  const ticksG = document.getElementById('ticks');
+  for (let i = 0; i < 60; i++) {
+    const big = i % 5 === 0;
+    const [x1, y1] = polar(168, i * 6);
+    const [x2, y2] = polar(big ? 158 : 162, i * 6);
+    const l = document.createElementNS(NS, 'line');
+    Object.entries({ x1, y1, x2, y2, stroke: 'var(--m-mid)', 'stroke-width': big ? 2.2 : 1 })
+      .forEach(([k, v]) => l.setAttribute(k, v));
+    ticksG.appendChild(l);
+  }
+  const numsG = document.getElementById('numerals');
+  for (let s = 5; s <= 60; s += 5) {
+    const [x, y] = polar(146, s * 6);
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', x); t.setAttribute('y', y); t.textContent = s;
+    numsG.appendChild(t);
+  }
+
+  // house picker
+  const houseBtns = document.querySelectorAll('.houses button');
+  function setTheme(h) {
+    document.body.dataset.theme = h;
+    houseBtns.forEach(b => b.setAttribute('aria-pressed', b.dataset.h === h));
+    document.getElementById('houseName').textContent = h;
+    try { localStorage.setItem('wizard-theme', h); } catch (e) {}
+  }
+  houseBtns.forEach(b => b.addEventListener('click', () => {
+    setTheme(b.dataset.h);
+    const r = b.getBoundingClientRect();
+    burst(r.left + r.width / 2, r.top + r.height / 2, 18);
+  }));
+  let saved = null;
+  try { saved = localStorage.getItem('wizard-theme'); } catch (e) {}
+  setTheme(['gryffindor', 'slytherin', 'ravenclaw', 'hufflepuff'].includes(saved) ? saved : 'gryffindor');
+
+  // sparkles
+  const fx = document.getElementById('fx');
+  const ctx = fx.getContext('2d');
+  let particles = [];
+  function resize() {
+    const d = window.devicePixelRatio || 1;
+    fx.width = innerWidth * d; fx.height = innerHeight * d;
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+  }
+  addEventListener('resize', resize); resize();
+
+  function spawn(x, y, vx, vy, life, size) {
+    const colors = [css('--sand'), css('--m-hi'), '#ffffff', css('--gem')];
+    particles.push({ x, y, vx, vy, life, max: life, size,
+      color: colors[Math.floor(Math.random() * colors.length)], rot: Math.random() * Math.PI });
+  }
+  function burst(x, y, n = 40) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 4;
+      spawn(x, y, Math.cos(a) * sp, Math.sin(a) * sp - 1, 50 + Math.random() * 40, 2 + Math.random() * 3);
+    }
+  }
+  function star(p, alpha) {
+    ctx.save();
+    ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 8;
+    const s = p.size;
+    ctx.beginPath();
+    ctx.moveTo(0, -s * 2); ctx.lineTo(s * .4, -s * .4); ctx.lineTo(s * 2, 0); ctx.lineTo(s * .4, s * .4);
+    ctx.lineTo(0, s * 2); ctx.lineTo(-s * .4, s * .4); ctx.lineTo(-s * 2, 0); ctx.lineTo(-s * .4, -s * .4);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  function fxLoop() {
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    if (Math.random() < .08) {
+      spawn(Math.random() * innerWidth, innerHeight + 10, (Math.random() - .5) * .3, -.4 - Math.random() * .6, 300, .8 + Math.random() * 1.2);
+    }
+    particles = particles.filter(p => p.life > 0);
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy; p.vx *= .98; p.vy = p.vy * .98 + .02; p.rot += .05; p.life--;
+      star(p, Math.min(1, p.life / p.max * 1.5) * (.6 + Math.random() * .4));
+    }
+    requestAnimationFrame(fxLoop);
+  }
+  fxLoop();
+
+  // 3D tilt: pointer on desktop, device orientation on mobile
+  const watch = document.getElementById('watch');
+  const pxRing = document.getElementById('pxRing');
+  const pxChamber = document.getElementById('pxChamber');
+  const pxGlare = document.getElementById('pxGlare');
+  const clamp = v => Math.max(-1, Math.min(1, v));
+  let tx = 0, ty = 0, cx = 0, cy = 0;
+  addEventListener('pointermove', e => {
+    tx = clamp((e.clientX / innerWidth - .5) * 2);
+    ty = clamp((e.clientY / innerHeight - .4) * 2);
+  });
+  document.addEventListener('pointerleave', () => { tx = 0; ty = 0; });
+  addEventListener('deviceorientation', e => {
+    if (e.gamma == null) return;
+    tx = clamp(e.gamma / 25);
+    ty = clamp((e.beta - 45) / 25);
+  });
+  let askedMotion = false;
+  function askMotion() {
+    if (askedMotion) return;
+    askedMotion = true;
+    if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) {
+      DeviceOrientationEvent.requestPermission().catch(() => {});
+    }
+  }
+  function tiltLoop() {
+    cx += (tx - cx) * .08; cy += (ty - cy) * .08;
+    watch.style.transform = `rotateY(${cx * 14}deg) rotateX(${-cy * 14}deg)`;
+    watch.style.filter = `drop-shadow(${-cx * 14}px ${16 - cy * 10}px 28px rgba(0,0,0,.6))`;
+    pxRing.setAttribute('transform', `translate(${cx * 4} ${cy * 4})`);
+    pxChamber.setAttribute('transform', `translate(${-cx * 4} ${-cy * 4})`);
+    pxGlare.setAttribute('transform', `translate(${-cx * 22} ${-cy * 22})`);
+    requestAnimationFrame(tiltLoop);
+  }
+  tiltLoop();
+
+  // stopwatch
+  const ring = document.getElementById('ring');
+  const sandTop = document.getElementById('sandTop');
+  const sandBot = document.getElementById('sandBot');
+  const stream = document.getElementById('stream');
+  const sandTopS = document.getElementById('sandTopS');
+  const sandBotS = document.getElementById('sandBotS');
+  const display = document.getElementById('display');
+  const toggleBtn = document.getElementById('toggle');
+  const lapBtn = document.getElementById('lap');
+  const lapList = document.getElementById('laps');
+
+  let running = false, startTime = 0, elapsed = 0, lapStart = 0, laps = [], raf = null;
+
+  function fmt(ms) {
+    const cs = Math.floor(ms / 10) % 100;
+    const s = Math.floor(ms / 1000) % 60;
+    const m = Math.floor(ms / 60000) % 60;
+    const h = Math.floor(ms / 3600000);
+    const p = n => String(n).padStart(2, '0');
+    return (h ? h + ':' : '') + p(m) + ':' + p(s) + '.' + p(cs);
+  }
+
+  const now = () => running ? elapsed + performance.now() - startTime : elapsed;
+
+  function draw(ms) {
+    const f = (ms % 60000) / 60000;
+    ring.setAttribute('transform', `rotate(${f * 360} ${CX} ${CY})`);
+    // top bulb drains, bottom fills (one cycle per minute)
+    sandTop.setAttribute('y', 140 + f * 88);
+    sandTop.setAttribute('height', 88 - f * 88);
+    sandBot.setAttribute('y', 316 - f * 70);
+    sandBot.setAttribute('height', f * 70);
+    sandTopS.setAttribute('y', 140 + f * 88);
+    sandTopS.setAttribute('height', 88 - f * 88);
+    sandBotS.setAttribute('y', 316 - f * 70);
+    sandBotS.setAttribute('height', f * 70);
+    stream.setAttribute('y2', 316 - f * 70);
+    stream.setAttribute('opacity', running ? .9 : 0);
+    display.textContent = fmt(ms);
+  }
+
+  function tick() {
+    draw(now());
+    if (lapList.firstChild && running) {
+      lapList.firstChild.lastChild.textContent = fmt(now() - lapStart);
+    }
+    raf = requestAnimationFrame(tick);
+  }
+
+  function renderLaps() {
+    lapList.innerHTML = '';
+    const done = laps.length;
+    const min = Math.min(...laps), max = Math.max(...laps);
+    if (running || elapsed > 0) addRow(done + 1, now() - lapStart, '');
+    for (let i = done - 1; i >= 0; i--) {
+      let cls = '';
+      if (done >= 2 && laps[i] === min) cls = 'best';
+      else if (done >= 2 && laps[i] === max) cls = 'worst';
+      addRow(i + 1, laps[i], cls);
+    }
+  }
+
+  function addRow(n, ms, cls) {
+    const li = document.createElement('li');
+    li.className = cls;
+    li.innerHTML = `<span>Lap ${n}</span><span>${fmt(ms)}</span>`;
+    lapList.appendChild(li);
+  }
+
+  function burstAt(elm, n) {
+    const r = elm.getBoundingClientRect();
+    burst(r.left + r.width / 2, r.top + r.height / 2, n);
+  }
+
+  function toggle() {
+    if (running) {
+      elapsed = now();
+      running = false;
+      cancelAnimationFrame(raf);
+      draw(elapsed);
+      toggleBtn.textContent = 'Start';
+      lapBtn.textContent = 'Reset';
+    } else {
+      startTime = performance.now();
+      running = true;
+      tick();
+      toggleBtn.textContent = 'Stop';
+      lapBtn.textContent = 'Lap';
+      lapBtn.disabled = false;
+      if (!lapList.firstChild) renderLaps();
+      burstAt(document.getElementById('hourglass'), 60);
+      askMotion();
+    }
+  }
+
+  function lapOrReset() {
+    if (running) {
+      const t = now();
+      laps.push(t - lapStart);
+      lapStart = t;
+      renderLaps();
+      burstAt(lapBtn, 30);
+    } else {
+      elapsed = 0; lapStart = 0; laps = [];
+      draw(0);
+      lapList.innerHTML = '';
+      lapBtn.textContent = 'Lap';
+      lapBtn.disabled = true;
+    }
+  }
+
+  draw(0);
+  toggleBtn.addEventListener('click', toggle);
+  lapBtn.addEventListener('click', lapOrReset);
+  document.getElementById('chain').addEventListener('click', toggle);
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    else if (e.key === 'l' || e.key === 'L') { if (running) lapOrReset(); }
+    else if (e.key === 'r' || e.key === 'R') { if (!running) lapOrReset(); }
+  });
+</script>
+</body>
+</html>
